@@ -49,11 +49,16 @@ void dune_apic_free()
 	free(apic_routing);
 }
 
+void dune_apic_init_rt_entry_ex(int core_id)
+{
+	apic_routing[core_id] = dune_apic_id();
+	asm("mfence" ::: "memory");
+}
+
 void dune_apic_init_rt_entry()
 {
 	int core_id = sched_getcpu();
-	apic_routing[core_id] = dune_apic_id();
-	asm("mfence" ::: "memory");
+	dune_apic_init_rt_entry_ex(core_id);
 }
 
 uint32_t dune_apic_id_for_cpu(uint32_t cpu, bool *error)

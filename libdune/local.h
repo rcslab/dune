@@ -25,3 +25,4 @@ extern int dune_page_init(void);
 bool dune_setup_apic(void);
 void dune_apic_free(void);
 void dune_apic_init_rt_entry(void);
+void dune_apic_init_rt_entry_ex(int core_num);

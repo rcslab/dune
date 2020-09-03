@@ -116,6 +116,11 @@ extern void dune_ret_from_user(int ret)  __attribute__ ((noreturn));
 extern void dune_dump_trap_frame(struct dune_tf *tf);
 extern void dune_passthrough_syscall(struct dune_tf *tf);
 
+static inline void dune_icebp(void)
+{
+	__asm__(".byte 0xf1\n");
+}
+
 // x2APIC
 
 extern uint32_t dune_apic_id();

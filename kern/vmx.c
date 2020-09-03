@@ -1714,6 +1714,14 @@ static void vmx_handle_cpuid(struct vmx_vcpu *vcpu)
 	vcpu->regs[VCPU_REGS_RDX] = edx;
 }
 
+#define INTR_TYPE_PRIV_SW_EXCEPTION (5 << 8)
+
+static inline bool is_icebp(uint32_t intr_info)
+{
+	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
+		== (INTR_TYPE_PRIV_SW_EXCEPTION | INTR_INFO_VALID_MASK);
+}
+
 static int vmx_handle_nmi_exception(struct vmx_vcpu *vcpu)
 {
 	u32 intr_info;
@@ -1723,6 +1731,9 @@ static int vmx_handle_nmi_exception(struct vmx_vcpu *vcpu)
 	vmx_put_cpu(vcpu);
 
 	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR)
+		return 0;
+
+	if (is_icebp(intr_info))
 		return 0;
 
 	printk(KERN_ERR "vmx: got interrupt, intr_info %x\n", intr_info);
@@ -1880,7 +1891,7 @@ static void vmx_handle_queued_interrupts(struct vmx_vcpu *vcpu)
 	}
 }
 
-/**
+/*
  * vmx_launch - the main loop for a VMX Dune process
  * @conf: the launch configuration
  */
@@ -1943,6 +1954,11 @@ int vmx_launch(struct dune_config *conf, int64_t *ret_code)
 		    (exit_intr_info & INTR_INFO_VALID_MASK)) {
 			asm("int $2");
 		}
+		if (is_icebp(exit_intr_info)) {
+			printk("ICEBP\n");
+			vmx_dump_cpu(vcpu);
+			vmx_step_instruction();
+		}
 
 		vmx_handle_external_interrupt(vcpu, exit_intr_info);
 
@@ -1969,7 +1985,7 @@ int vmx_launch(struct dune_config *conf, int64_t *ret_code)
 			if (vmx_handle_msr_write(vcpu))
 				done = 1;
 		} else if (ret != EXIT_REASON_EXTERNAL_INTERRUPT) {
-			printk(KERN_INFO "unhandled exit: reason %d, exit qualification %x\n",
+			printk(KERN_INFO "unhandled exit: reason %x, exit qualification %x\n",
 					ret, vmcs_read32(EXIT_QUALIFICATION));
 			vcpu->ret_code = DUNE_RET_UNHANDLED_VMEXIT;
 			vmx_dump_cpu(vcpu);

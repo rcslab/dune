@@ -6,6 +6,7 @@
 
 #include <sys/queue.h>
 #include <stdbool.h>
+#include <setjmp.h>
 
 #include "mmu.h"
 #include "elf.h"
@@ -115,6 +116,9 @@ extern int dune_jump_to_user(struct dune_tf *tf);
 extern void dune_ret_from_user(int ret)  __attribute__ ((noreturn));
 extern void dune_dump_trap_frame(struct dune_tf *tf);
 extern void dune_passthrough_syscall(struct dune_tf *tf);
+
+extern void dune_jmpbuf_to_trapframe(const sigjmp_buf jb, struct dune_tf *tf);
+extern int dune_setjmp(sigjmp_buf jb);
 
 extern void dune_dump_hex(const char *data, size_t len);
 static inline void dune_icebp(void)

@@ -5,6 +5,8 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include <setjmp.h>
+#include <bits/setjmp.h>
 
 #include "dune.h"
 #include "cpu-x86.h"
@@ -120,6 +122,52 @@ void dune_dump_trap_frame(struct dune_tf *tf)
 	dune_dump_stack(tf);
 	dump_ip(tf);
 	dune_printf("dune: --- End Trap Dump ---\n");
+}
+
+#define JB_RBX 0
+#define JB_RBP 1
+#define JB_R12 2
+#define JB_R13 3
+#define JB_R14 4
+#define JB_R15 5
+#define JB_RSP 6
+#define JB_PC 7
+#define JB_SIZE (8*8)
+
+static inline uint64_t dune_longjmp_demangle(uint64_t val)
+{
+	uint64_t tmp = val;
+
+	__asm__("ror $0x11,%0\n"
+		"xor %%fs:0x30,%0\n"
+		 : "=r" (tmp) : "r" (tmp));
+
+	return tmp;
+}
+
+void dune_jmpbuf_to_trapframe(const sigjmp_buf jb, struct dune_tf *tf)
+{
+	const __jmp_buf *env = &jb->__jmpbuf;
+	uintptr_t *p = (uintptr_t *)env;
+
+	tf->rbx = p[JB_RBX];
+	tf->rbp = dune_longjmp_demangle(p[JB_RBP]);
+	tf->r12 = p[JB_R12];
+	tf->r13 = p[JB_R13];
+	tf->r14 = p[JB_R14];
+	tf->r15 = p[JB_R15];
+	tf->rsp = dune_longjmp_demangle(p[JB_RSP]);
+	tf->rip = dune_longjmp_demangle(p[JB_PC]);
+	tf->rax = 1;
+
+	dune_pop_trap_frame(tf);
+}
+
+int dune_setjmp(sigjmp_buf jb)
+{
+	int val = sigsetjmp(jb, 0);
+
+	return val;
 }
 
 void dune_syscall_handler(struct dune_tf *tf)

@@ -82,3 +82,49 @@ void dune_debug_handle_int(struct dune_config *conf)
 		break;
 	}
 }
+
+void
+dune_dump_hex(const char *data, size_t len)
+{
+    const size_t row_size = 16;
+    bool stop = false;
+
+    for (size_t row = 0; !stop; row++) {
+        printf("%08lx  ", row * row_size);
+        for (size_t col = 0; col < row_size; col++) { 
+            size_t ix = row * row_size + col;
+            if (ix >= len) {
+		stop = true;
+                for (; col < row_size; col++) {
+                    printf("   ");
+                }
+                break;
+            }
+
+            printf("%02X ", (unsigned char)data[ix]);
+        }
+        printf("  |");
+
+        for (size_t col = 0; col < row_size; col++) { 
+            size_t ix = row * row_size + col;
+            if (ix >= len) {
+                for (; col < row_size; col++) {
+                    printf(" ");
+                }
+                break;
+            }
+
+            unsigned char c = (unsigned char)data[ix];
+            if (c >= 0x20 && c < 0x7F)
+                printf("%c", c);
+            else
+                putchar('.');
+        }
+        printf("|\n");
+
+	if (stop || ((row+1)*row_size == len))
+		return;
+    }
+    printf("\n");
+}
+
